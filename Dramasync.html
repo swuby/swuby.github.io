@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dramasync - Script Audio Timeline</title>
+  <style>
+    :root {
+      --fader-h: 220px;
+      --btn-h: 64px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background: linear-gradient(135deg, #0a0e27 0%, #1a0f35 100%);
+      color: #fff;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 15px;
+    }
+
+    .container {
+      max-width: 1800px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+      padding: 20px;
+      background: linear-gradient(145deg, #160c20, #060408);
+      border: 2px solid #c084fc;
+      border-radius: 12px;
+      box-shadow: 0 0 40px rgba(192, 132, 252, 0.3);
+    }
+
+    h1 {
+      font-size: 32px;
+      letter-spacing: 4px;
+      color: #c084fc;
+      text-shadow: 0 0 30px rgba(192, 132, 252, 0.6);
+      margin-bottom: 5px;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: #8b5cf6;
+      letter-spacing: 2px;
+    }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr minmax(360px, 440px);
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    /* RIGHT PANEL - CONTROLS */
+    .controls-panel {
+      order: 2;
+      background: linear-gradient(145deg, #160c20, #060408);
+      border: 1px solid #5d347a;
+      border-radius: 12px;
+      padding: 20px;
+      height: fit-content;
+      position: sticky;
+      top: 15px;
+    }
+
+    .content-panel {
+      order: 1;
+      min-width: 0;
+    }
+
+    .control-section {
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #5d347a;
+    }
+
+    .control-section:last-child {
+      border-bottom: none;
+    }
+
+    .control-label {
+      font-size: 13px;
+      color: #c084fc;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+      font-weight: bold;
+    }
+
+    button {
+      font-family: inherit;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    button:focus-visible,
+    input[type="range"]:focus-visible {
+      outline: 3px solid #c084fc;
+      outline-offset: 2px;
+    }
+
+    .player-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+
+    .btn {
+      min-height: var(--btn-h);
+      padding: 16px 10px;
+      background: linear-gradient(145deg, #2a143b, #0c0710);
+      border: 2px solid #66398a;
+      color: #c084fc;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 17px;
+      font-weight: bold;
+      transition: transform 0.08s, box-shadow 0.15s, border-color 0.15s, background 0.15s;
+      text-align: center;
+    }
+
+    .btn:hover {
+      border-color: #c084fc;
+      box-shadow: 0 0 18px rgba(192, 132, 252, 0.5);
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+      background: linear-gradient(145deg, #3d1d57, #1a0d20);
+      box-shadow: 0 0 22px rgba(192, 132, 252, 0.7);
+    }
+
+    .btn.play {
+      border-color: #5cf65c;
+      color: #5cf65c;
+      grid-column: 1;
+    }
+
+    .btn.pause {
+      border-color: #ffd700;
+      color: #ffd700;
+      grid-column: 2;
+    }
+
+    .btn.stop {
+      border-color: #ff6b6b;
+      color: #ff6b6b;
+      grid-column: 1 / -1;
+    }
+
+    .btn.prev {
+      border-color: #5cf6e1;
+      color: #5cf6e1;
+    }
+
+    .btn.next {
+      border-color: #5cf6e1;
+      color: #5cf6e1;
+    }
+
+    .sliders-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 15px;
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .slider-label {
+      font-size: 13px;
+      color: #8b5cf6;
+      text-align: center;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    .slider-value {
+      font-size: 16px;
+      font-weight: bold;
+      color: #c084fc;
+      text-align: center;
+      min-height: 22px;
+    }
+
+    .slider-wrapper {
+      height: var(--fader-h);
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Vertical fader: thick track + matching-width handle, so it is easy to grab on touch */
+    input[type="range"] {
+      --fill: 50%;
+      writing-mode: vertical-lr;
+      direction: rtl;
+      -webkit-appearance: none;
+      appearance: none;
+      width: 44px;
+      height: var(--fader-h);
+      margin: 0;
+      border-radius: 12px;
+      border: 1px solid #66398a;
+      background: linear-gradient(to top, #8b5cf6 0%, #c084fc var(--fill), #1a0d20 var(--fill), #2a143b 100%);
+      outline: none;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      background: transparent;
+      border-radius: 12px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 44px;
+      height: 26px;
+      border-radius: 8px;
+      background: linear-gradient(145deg, #f0dcff, #c084fc);
+      border: 2px solid #fff;
+      cursor: grab;
+      box-shadow: 0 0 14px rgba(192, 132, 252, 0.8);
+    }
+
+    input[type="range"]:active::-webkit-slider-thumb {
+      cursor: grabbing;
+      box-shadow: 0 0 22px rgba(192, 132, 252, 1);
+    }
+
+    input[type="range"]::-moz-range-track {
+      background: transparent;
+      border: none;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 40px;
+      height: 22px;
+      border-radius: 8px;
+      background: linear-gradient(145deg, #f0dcff, #c084fc);
+      border: 2px solid #fff;
+      cursor: grab;
+      box-shadow: 0 0 14px rgba(192, 132, 252, 0.8);
+    }
+
+    .preset-section {
+      margin-top: 15px;
+    }
+
+    .preset-section h3 {
+      font-size: 13px;
+      color: #c084fc;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    .preset-buttons {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+
+    .preset-btn {
+      min-height: 60px;
+      padding: 16px;
+      background: linear-gradient(145deg, #1a0d20, #0c0710);
+      border: 2px solid #5d347a;
+      color: #8b5cf6;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      transition: transform 0.08s, box-shadow 0.15s, border-color 0.15s;
+      text-align: center;
+    }
+
+    .preset-btn:active {
+      transform: scale(0.97);
+    }
+
+    .preset-btn:hover {
+      border-color: #c084fc;
+      color: #c084fc;
+      box-shadow: 0 0 10px rgba(192, 132, 252, 0.3);
+    }
+
+    /* RIGHT PANEL - PLAYLIST & SOUND BOARD */
+    .content-panel {
+      background: linear-gradient(145deg, #160c20, #060408);
+      border: 1px solid #5d347a;
+      border-radius: 12px;
+      padding: 15px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #5d347a;
+    }
+
+    .panel-header h2 {
+      font-size: 14px;
+      color: #c084fc;
+      letter-spacing: 2px;
+    }
+
+    .clear-btn {
+      min-height: 40px;
+      padding: 8px 18px;
+      background: linear-gradient(145deg, #2a143b, #0c0710);
+      border: 1px solid #5d347a;
+      color: #ff6b6b;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+
+    .clear-btn:hover {
+      border-color: #ff6b6b;
+      box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+    }
+
+    .timeline-container {
+      margin-bottom: 15px;
+      padding: 12px;
+      background: rgba(10, 14, 39, 0.5);
+      border-radius: 8px;
+      border: 1px solid #5d347a;
+    }
+
+    .progress-label {
+      font-size: 12px;
+      color: #8b5cf6;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 18px;
+      background: linear-gradient(90deg, #2a143b 0%, #66398a 100%);
+      border-radius: 9px;
+      touch-action: manipulation;
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #c084fc 0%, #8b5cf6 100%);
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+
+    .time-display {
+      font-size: 12px;
+      color: #c084fc;
+      margin-top: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .status-box {
+      background: rgba(10, 14, 39, 0.5);
+      border: 1px solid #5d347a;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 15px;
+      font-size: 13px;
+      color: #8b5cf6;
+      min-height: 20px;
+    }
+
+    .sound-board {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    .sound-btn {
+      min-height: 52px;
+      padding: 10px 8px;
+      background: linear-gradient(145deg, #1a0d20, #0c0710);
+      border: 1px solid #5d347a;
+      color: #8b5cf6;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      transition: 0.2s;
+      white-space: normal;
+      line-height: 1.2;
+    }
+
+    .sound-btn:active {
+      transform: scale(0.95);
+    }
+
+    .sound-btn:hover {
+      border-color: #c084fc;
+      color: #c084fc;
+      box-shadow: 0 0 10px rgba(192, 132, 252, 0.3);
+    }
+
+    .playlist-section h3 {
+      font-size: 11px;
+      color: #c084fc;
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+
+    .playlist {
+      max-height: 400px;
+      overflow-y: auto;
+      background: rgba(10, 14, 39, 0.5);
+      border-radius: 6px;
+      padding: 8px;
+      border: 1px solid #5d347a;
+    }
+
+    .playlist-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      margin-bottom: 6px;
+      background: linear-gradient(145deg, #1a0d20, #0c0710);
+      border: 1px solid #5d347a;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #8b5cf6;
+      transition: all 0.2s;
+    }
+
+    .playlist-item.playing {
+      background: linear-gradient(145deg, #2a143b, #1a0d20);
+      border-color: #c084fc;
+      color: #c084fc;
+      box-shadow: 0 0 12px rgba(192, 132, 252, 0.4);
+    }
+
+    .remove-item-btn {
+      min-width: 36px;
+      min-height: 32px;
+      padding: 4px 8px;
+      background: rgba(255, 107, 107, 0.2);
+      border: 1px solid #ff6b6b;
+      color: #ff6b6b;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: 0.2s;
+      margin-left: 6px;
+    }
+
+    .remove-item-btn:hover {
+      background: rgba(255, 107, 107, 0.4);
+      box-shadow: 0 0 8px rgba(255, 107, 107, 0.3);
+    }
+
+    .empty-message {
+      text-align: center;
+      color: #8b5cf6;
+      padding: 20px;
+      font-size: 10px;
+      letter-spacing: 1px;
+    }
+
+    /* Scrollbar styling */
+    .playlist::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .playlist::-webkit-scrollbar-track {
+      background: rgba(10, 14, 39, 0.3);
+      border-radius: 3px;
+    }
+
+    .playlist::-webkit-scrollbar-thumb {
+      background: #66398a;
+      border-radius: 3px;
+    }
+
+    .playlist::-webkit-scrollbar-thumb:hover {
+      background: #c084fc;
+    }
+
+    @media (max-width: 1024px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+
+      /* Stacked: controls first so they're reachable without scrolling */
+      .controls-panel {
+        order: 0;
+        position: relative;
+        top: 0;
+      }
+
+      .content-panel {
+        order: 1;
+      }
+
+      .sound-board {
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      }
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 10px; }
+      h1 { font-size: 24px; letter-spacing: 2px; }
+      .controls-panel { padding: 14px; }
+      .btn { font-size: 16px; }
+      :root { --fader-h: 180px; --btn-h: 60px; }
+    }
+    /* TABLET PORTRAIT: controls become a compact two-column block so the
+       timeline and sound library stay visible without a long scroll */
+    @media (min-width: 600px) and (max-width: 1024px) and (orientation: portrait) {
+      :root { --fader-h: 270px; --btn-h: 60px; }
+      body { padding: 20px; }
+
+      .controls-panel {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        column-gap: 28px;
+        padding: 22px;
+      }
+
+      .controls-panel > .control-section {
+        margin: 0;
+        padding: 0;
+        border-bottom: none;
+      }
+
+      .controls-panel > .control-section:nth-child(1) { grid-column: 1; grid-row: 1; }
+      .controls-panel > .control-section:nth-child(2) { grid-column: 2; grid-row: 1 / span 2; }
+      .controls-panel > .control-section:nth-child(3) { grid-column: 1; grid-row: 2; margin-top: 4px; }
+
+      .sound-board { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+      .sound-btn { min-height: 60px; font-size: 14px; }
+      .playlist { max-height: 45vh; }
+    }
+
+    /* TABLET LANDSCAPE: keep two columns, controls on the right, and size
+       everything from the screen height so the whole panel fits on screen */
+    @media (min-width: 700px) and (orientation: landscape) {
+      :root {
+        --fader-h: clamp(110px, 23vh, 240px);
+        --btn-h: clamp(44px, 9vh, 68px);
+      }
+
+      body { padding: 10px; }
+
+      header {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 16px;
+        padding: 8px 16px;
+        margin-bottom: 10px;
+      }
+
+      h1 { font-size: 22px; letter-spacing: 3px; margin-bottom: 0; }
+
+      .main-layout {
+        grid-template-columns: 1fr minmax(320px, 400px);
+        gap: 10px;
+      }
+
+      .controls-panel {
+        order: 2;
+        position: sticky;
+        top: 10px;
+        padding: 14px;
+        max-height: calc(100vh - 20px);
+        max-height: calc(100dvh - 20px);
+        overflow-y: auto;
+      }
+
+      .content-panel { order: 1; }
+
+      .control-section { margin-bottom: 10px; padding-bottom: 10px; }
+      .control-label { margin-bottom: 8px; }
+      .player-buttons { gap: 8px; margin-bottom: 0; }
+      .btn { padding: 8px; font-size: 15px; }
+      .preset-btn { min-height: 48px; padding: 10px; font-size: 14px; }
+      .sliders-container { margin-bottom: 0; gap: 10px; }
+      .slider-group { gap: 6px; }
+      .sound-board { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+      .playlist { max-height: 45vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎭 DRAMASYNC</h1>
+      <p class="subtitle">CLUE-LESS SCRIPT AUDIO TIMELINE</p>
+    </header>
+
+    <div class="main-layout">
+      <!-- LEFT PANEL: CONTROLS -->
+      <div class="controls-panel">
+        <div class="control-section">
+          <div class="control-label">▶ PLAYBACK</div>
+          <div class="player-buttons">
+            <button class="btn play" onclick="playSequence()">▶ PLAY</button>
+            <button class="btn pause" onclick="pauseSequence()">⏸ PAUSE</button>
+            <button class="btn prev" onclick="skipPrev()">⏮ BACK</button>
+            <button class="btn next" onclick="skipNext()">⏭ SKIP</button>
+            <button class="btn stop" onclick="stopSequence()">⏹ STOP</button>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <div class="sliders-container">
+            <div class="slider-group">
+              <div class="slider-label">SPEED</div>
+              <div class="slider-wrapper">
+                <input type="range" min="0.5" max="2" step="0.1" value="1" oninput="updateSpeed(this.value)" aria-label="Speed">
+              </div>
+              <div class="slider-value" id="speedVal">1.0x</div>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-label">GAIN</div>
+              <div class="slider-wrapper">
+                <input type="range" min="0.1" max="3" step="0.1" value="1" oninput="updateGain(this.value)" aria-label="Gain">
+              </div>
+              <div class="slider-value" id="gainVal">1.0x</div>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-label">VOLUME</div>
+              <div class="slider-wrapper">
+                <input type="range" min="0" max="100" step="1" value="100" oninput="updateVolume(this.value)" aria-label="Volume">
+              </div>
+              <div class="slider-value" id="volVal">100%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-section preset-section">
+          <h3>🎬 SEQUENCE</h3>
+          <div class="preset-buttons">
+            <button class="preset-btn" onclick="loadPreset('Full Script')" style="grid-column: 1 / -1; background: linear-gradient(145deg, #2a143b, #1a0d20); border-color: #c084fc; color: #c084fc;">⏱ Load Full Script</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL: CONTENT -->
+      <div class="content-panel">
+        <!-- Timeline & Status -->
+        <div class="timeline-container">
+          <div class="progress-label">
+            <span>TIMELINE</span>
+            <span id="currentSound">Ready</span>
+          </div>
+          <div class="progress-bar" onclick="seekProgress(event)">
+            <div class="progress-fill" id="progress"></div>
+          </div>
+          <div class="time-display">
+            <span id="current">0:00</span>
+            <span id="total">0:00</span>
+          </div>
+        </div>
+
+        <div class="status-box" id="status">Load a preset or add sounds to begin</div>
+
+        <!-- Local Audio -->
+        <div class="local-audio-section" style="margin-bottom: 18px;">
+          <div class="control-label" style="margin-bottom: 10px;">📁 LOCAL AUDIO FILES</div>
+          <label class="btn" style="display:block; min-height:auto; padding:12px; text-align:center;">
+            + ADD AUDIO FILES
+            <input id="localAudioInput" type="file" accept="*" multiple
+                   style="display:none;" onchange="loadLocalAudio(this.files)">
+          </label>
+          <div id="localAudioHint" style="margin-top:8px; font-size:11px; color:#8b5cf6;">
+            Choose MP3, WAV, OGG, M4A, etc. Files stay on your computer.
+          </div>
+        </div>
+
+        <!-- Sound Board -->
+        <div>
+          <div class="control-label" style="margin-bottom: 10px;">🎵 SOUND LIBRARY</div>
+          <div class="sound-board" id="board"></div>
+        </div>
+
+        <!-- Playlist -->
+        <div class="playlist-section" style="margin-top: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h3>📋 SEQUENCE</h3>
+            <button class="clear-btn" onclick="clearPlaylist()">CLEAR</button>
+          </div>
+          <div class="playlist" id="list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // LOCAL AUDIO LIBRARY
+    // Put your audio files in the same folder as this HTML file and use these
+    // relative paths. No Base64 data is embedded in the HTML.
+    const audioFiles = {
+      "Thunder and Rain": "thunder-and-rain.mp3",
+      "Doorbell": "doorbell.mp3",
+      "Gunshot": "gunshot.mp3",
+      "Slap": "slap.mp3",
+      "Thunder": "thunder.mp3",
+      "Ominous Music": "ominous-music.mp3",
+      "Circus Music": "circus-music.mp3",
+      "Door Locked": "door-locked.mp3",
+      "Toilet Flushing": "toilet-flushing.mp3",
+      "Heroic Police Music": "heroic-police-music.mp3",
+      "Hound Dog": "hound-dog.mp3"
+    };
+
+    // Object URLs point directly to files selected by the user.
+    // They are temporary browser URLs, not Base64 and are not uploaded anywhere.
+    const localAudioFiles = {};
+    const localAudioObjectUrls = [];
+
+    function loadLocalAudio(files) {
+      if (!files || !files.length) return;
+
+      [...files].forEach(file => {
+        if (!file.type.startsWith('')) return;
+
+        const name = file.name.replace(/\\.[^/.]+$/, '');
+        const key = name || file.name;
+        const url = URL.createObjectURL(file);
+
+        // If a file with the same name is selected again, release the old URL.
+        if (localAudioFiles[key]?.url) {
+          URL.revokeObjectURL(localAudioFiles[key].url);
+        }
+
+        localAudioFiles[key] = { url, file };
+        localAudioObjectUrls.push(url);
+
+        // Add/update its estimated duration asynchronously.
+        const probe = new Audio();
+        probe.preload = 'metadata';
+        probe.src = url;
+        probe.onloadedmetadata = () => {
+          durations[key] = Number.isFinite(probe.duration) ? probe.duration : 1;
+          render();
+          updateTimeline();
+        };
+      });
+
+      initBoard();
+      status(`Added ${files.length} local audio file${files.length === 1 ? '' : 's'}`);
+      document.getElementById('localAudioHint').textContent =
+        `${Object.keys(localAudioFiles).length} local file(s) loaded • nothing is converted to Base64`;
+    }
+
+    const presets = {
+      "Full Script": ["Thunder and Rain", "Doorbell", "Doorbell", "Doorbell", "Doorbell", "Doorbell", "Circus Music", "Doorbell", "Door Locked", "Circus Music", "Thunder", "Ominous Music", "Gunshot", "Slap", "Doorbell", "Gunshot", "Slap", "Toilet Flushing", "Gunshot", "Heroic Police Music", "Hound Dog"]
+    };
+
+    const durations = {
+      "Thunder and Rain": 4.7,
+      "Doorbell": 0.5,
+      "Gunshot": 0.3,
+      "Slap": 0.2,
+      "Thunder": 1.0,
+      "Ominous Music": 2.0,
+      "Circus Music": 3.0,
+      "Door Locked": 1.5,
+      "Toilet Flushing": 1.5,
+      "Heroic Police Music": 2.7,
+      "Hound Dog": 3.1
+    };
+
+    let playlist = [];
+    let idx = 0;
+    let playing = false;
+    let paused = false;
+    let audio = null;
+    let elapsed = 0;
+    let total = 0;
+    let vol = 1, gain = 1, speed = 1;
+    let animationId = null;
+
+    window.onload = () => {
+      initBoard();
+      document.querySelectorAll('input[type="range"]').forEach(r => {
+        setFill(r);
+        r.addEventListener('input', () => setFill(r));
+      });
+    };
+
+    // Paints the lit portion of each fader to match its value
+    function setFill(r) {
+      const pct = (r.value - r.min) / (r.max - r.min) * 100;
+      r.style.setProperty('--fill', pct + '%');
+    }
+
+    function initBoard() {
+      const board = document.getElementById('board');
+      board.innerHTML = '';
+
+      const names = [...new Set([
+        ...Object.keys(audioFiles),
+        ...Object.keys(localAudioFiles)
+      ])].sort();
+
+      names.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'sound-btn';
+        btn.textContent = s;
+        btn.title = localAudioFiles[s] ? 'Local file: ' + localAudioFiles[s].file.name : s;
+        btn.onclick = () => addSound(s);
+        board.appendChild(btn);
+      });
+    }
+
+    function loadPreset(name) {
+      stopSequence();
+      playlist = [...presets[name]];
+      idx = 0;
+      audio = null;
+      playing = false;
+      paused = false;
+      render();
+      updateTimeline();
+      status(`Loaded: ${name} (${playlist.length} sounds) — manual playback`);
+    }
+
+    function addSound(s) {
+      playlist.push(s);
+
+      // Select the newly added sound. Nothing plays automatically.
+      idx = playlist.length - 1;
+
+      if (audio) {
+        audio.pause();
+        audio = null;
+      }
+
+      playing = false;
+      paused = false;
+      updateTimeline();
+      render();
+      status(`Added: ${s} — press PLAY when ready`);
+    }
+
+    function removeSound(i) {
+      playlist.splice(i, 1);
+      if (idx >= playlist.length) idx = Math.max(0, playlist.length - 1);
+      if (audio && idx !== i) {
+        // Keep the currently loaded audio only if its playlist item remains.
+      }
+      updateTimeline();
+      render();
+    }
+
+    function clearPlaylist() {
+      stop();
+      playlist = [];
+      idx = 0;
+      elapsed = 0;
+      total = 0;
+      audio = null;
+      render();
+      updateTimeline();
+      status('Cleared');
+    }
+
+    function render() {
+      const list = document.getElementById('list');
+      if (playlist.length === 0) {
+        list.innerHTML = '<div class="empty-message">Load preset or add sounds</div>';
+        return;
+      }
+      list.innerHTML = playlist.map((s, i) => `
+        <div class="playlist-item ${i === idx && playing ? 'playing' : ''}">
+          <div>#${i + 1} ${s}</div>
+          <button class="remove-item-btn" onclick="removeSound(${i})">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function playSequence() {
+      if (playlist.length === 0) {
+        status('❌ Empty');
+        return;
+      }
+
+      // PLAY is manual: it starts/resumes only the currently selected audio.
+      if (!audio) {
+        loadCurrentAudio(idx);
+      }
+
+      if (!audio) return;
+
+      playing = true;
+      paused = false;
+      audio.play().catch(() => status('❌ Error playing audio'));
+      status(`Playing: ${playlist[idx]}`);
+      updateTimeline();
+      startTimelineLoop();
+    }
+
+    function pauseSequence() {
+      if (audio) {
+        audio.pause();
+        playing = false;
+        paused = true;
+        status(`Paused: ${playlist[idx]}`);
+        updateTimeline();
+      }
+    }
+
+    function stopSequence() {
+      playing = false;
+      paused = false;
+
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+
+      updateTimeline();
+      render();
+      status(audio ? `Stopped: ${playlist[idx]}` : 'Stopped');
+    }
+
+    // Loads ONLY the selected playlist item. It never uses the total
+    // sequence duration as the timeline.
+    function loadCurrentAudio(index = idx, autoplay = false, startAt = 0) {
+      if (playlist.length === 0) return;
+
+      idx = Math.max(0, Math.min(index, playlist.length - 1));
+
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+
+      if (audio) {
+        audio.pause();
+        audio.onended = null;
+        audio.onerror = null;
+      }
+
+      const s = playlist[idx];
+      const uri = localAudioFiles[s]?.url || audioFiles[s];
+
+      if (!uri) {
+        audio = null;
+        playing = false;
+        paused = false;
+        status(`❌ Audio file not found: ${s}`);
+        updateTimeline();
+        return;
+      }
+
+      audio = new Audio(uri);
+      audio.preload = 'metadata';
+      audio.volume = Math.min(1, vol * gain);
+      audio.playbackRate = speed;
+
+      // Manual sequencing: reaching the end does NOT advance the playlist.
+      audio.onended = () => {
+        playing = false;
+        paused = false;
+        audio.currentTime = audio.duration || 0;
+        updateTimeline();
+        render();
+        status(`✓ Finished: ${s} — press PLAY to replay or SKIP to move`);
+      };
+
+      audio.onerror = () => {
+        playing = false;
+        paused = false;
+        status(`❌ Could not play: ${s}`);
+        updateTimeline();
+      };
+
+      audio.onloadedmetadata = () => {
+        if (Number.isFinite(audio.duration)) {
+          durations[s] = audio.duration;
+        }
+        audio.currentTime = Math.max(0, Math.min(startAt, audio.duration || 0));
+        updateTimeline();
+
+        if (autoplay) {
+          playing = true;
+          paused = false;
+          audio.play().catch(() => status('❌ Error playing audio'));
+          startTimelineLoop();
+        }
+      };
+
+      document.getElementById('currentSound').textContent = s;
+      render();
+
+      // If metadata is already cached, apply the requested start position.
+      if (audio.readyState >= 1) {
+        audio.currentTime = Math.max(0, Math.min(startAt, audio.duration || 0));
+        updateTimeline();
+
+        if (autoplay) {
+          playing = true;
+          paused = false;
+          audio.play().catch(() => status('❌ Error playing audio'));
+          startTimelineLoop();
+        }
+      }
+    }
+
+    function startTimelineLoop() {
+      if (animationId) cancelAnimationFrame(animationId);
+
+      const tick = () => {
+        if (audio && playing && !paused) {
+          updateTimeline();
+          animationId = requestAnimationFrame(tick);
+        } else {
+          animationId = null;
+        }
+      };
+
+      animationId = requestAnimationFrame(tick);
+    }
+
+    function skipNext() {
+      if (playlist.length === 0) return;
+
+      // SKIP always moves to the next audio AND starts it immediately.
+      const nextIndex = Math.min(idx + 1, playlist.length - 1);
+      loadCurrentAudio(nextIndex, true, 0);
+      status(`Playing: ${playlist[idx]}`);
+    }
+
+    function skipPrev() {
+      if (playlist.length === 0) return;
+
+      // BACK always moves to the previous audio AND starts it immediately.
+      const previousIndex = Math.max(idx - 1, 0);
+      loadCurrentAudio(previousIndex, true, 0);
+      status(`Playing: ${playlist[idx]}`);
+    }
+
+    function updateTimeline() {
+      // IMPORTANT: this timeline belongs ONLY to the current audio.
+      // It does not add previous/next playlist items.
+      const currentTime = audio ? (Number.isFinite(audio.currentTime) ? audio.currentTime : 0) : 0;
+      const duration = audio && Number.isFinite(audio.duration)
+        ? audio.duration
+        : (durations[playlist[idx]] || 0);
+
+      const p = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+
+      document.getElementById('progress').style.width = p + '%';
+      document.getElementById('current').textContent = time(currentTime);
+      document.getElementById('total').textContent = time(duration);
+    }
+
+    function seekProgress(e) {
+      // Timeline seeking is manual and applies only to the current audio.
+      if (!audio || playlist.length === 0) return;
+
+      const rect = e.currentTarget.getBoundingClientRect();
+      const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+
+      const duration = Number.isFinite(audio.duration)
+        ? audio.duration
+        : (durations[playlist[idx]] || 0);
+
+      if (!duration) return;
+
+      audio.currentTime = duration * percent;
+      updateTimeline();
+
+      if (playing && !paused) {
+        startTimelineLoop();
+      }
+    }
+
+
+    function updateVolume(v) {
+      vol = v / 100;
+      document.getElementById('volVal').textContent = v + '%';
+      if (audio) audio.volume = Math.min(1, vol * gain);
+    }
+
+    function updateGain(v) {
+      gain = parseFloat(v);
+      document.getElementById('gainVal').textContent = gain.toFixed(1) + 'x';
+      if (audio) audio.volume = Math.min(1, vol * gain);
+    }
+
+    function updateSpeed(v) {
+      speed = parseFloat(v);
+      document.getElementById('speedVal').textContent = speed.toFixed(1) + 'x';
+      if (audio) audio.playbackRate = speed;
+    }
+
+    function stop() {
+      stopSequence();
+    }
+
+    function status(m) {
+      document.getElementById('status').textContent = m;
+    }
+
+    window.addEventListener('beforeunload', () => {
+      localAudioObjectUrls.forEach(url => URL.revokeObjectURL(url));
+    });
+
+    function time(s) {
+      const m = Math.floor(s / 60);
+      const sec = Math.floor(s % 60);
+      return m + ':' + (sec < 10 ? '0' : '') + sec;
+    }
+  </script>
+</body>
+</html>
